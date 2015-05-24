@@ -1,0 +1,95 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta http-equiv="Content-Style-Type" content="text/css" />
+  <meta name="generator" content="pandoc" />
+  <title></title>
+  <style type="text/css">code{white-space: pre;}</style>
+</head>
+<body>
+<h1 id="installing-on-linux">Installing on Linux</h1>
+<p>Copyright David A.W. Barton (david.barton@bristol.ac.uk) 2015.</p>
+<p>All of the associated source code and documentation is released under the MIT license.</p>
+<p>Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the &quot;Software&quot;), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:</p>
+<p>The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.</p>
+<p>THE SOFTWARE IS PROVIDED &quot;AS IS&quot;, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.</p>
+<h2 id="overview">Overview</h2>
+<p>This document describes how to build firmware for the real-time controller, install suitable device drivers for the real-time controller and use it with Matlab.</p>
+<p>It is not necessary to build the firmware if you have already have suitable firmware to use.</p>
+<h2 id="to-build-the-real-time-controller-firmware-optional">To build the real-time controller firmware (optional)</h2>
+<ol style="list-style-type: decimal">
+<li><p>Download GCC ARM compiler from <a href="https://launchpad.net/gcc-arm-embedded/4.9/4.9-2014-q4-major/">https://launchpad.net/gcc-arm-embedded/4.9/4.9-2014-q4-major/</a>.</p>
+<ul>
+<li>Any recent version (i.e., post 2013) should work. Probably even ones earlier than that will work as well.</li>
+</ul></li>
+<li><p>Install ARM compiler and add it to your path.</p></li>
+<li><p>Install Git and Make via your system package manager.</p>
+<ul>
+<li><p>Fedora: <code>sudo yum install git make</code>.</p></li>
+<li><p>Ubuntu/Debian: <code>sudo apt-get install git build-essential</code>.</p></li>
+</ul></li>
+<li><p>Clone the necessary repositories from <a href="http://github.com/db9052/">GitHub</a>.</p>
+<pre><code>git clone https://github.com/db9052/rtc rtc
+cd rtc
+git clone https://github.com/db9052/starterware starterware</code></pre></li>
+<li><p>Build TI Starterware.</p>
+<pre><code>cd build
+make starterware
+cd ..</code></pre></li>
+<li><p>Build the rig of your choice, e.g., duffing_numerical for a simple test</p>
+<pre><code>cd rigs/duffing_numerical
+make</code></pre></li>
+<li><p>Put the resulting <code>.bin</code> file on a micro SD card as app.bin. There should also be a file called <code>uEnv.txt</code> on the SD card which contains the following text (only).</p>
+<pre><code>uenvcmd=mmcinfo;fatload mmc 0 0x80000000 app.bin; go 0x80000000</code></pre></li>
+</ol>
+<p>Once you have done all this once, you only need to repeat steps 6 and 7 to compile new versions of your firmware.</p>
+<h2 id="device-drivers-for-the-usb-interface-to-the-real-time-controller">Device drivers for the USB interface to the real-time controller</h2>
+<ol style="list-style-type: decimal">
+<li><p>Copy <code>rtc/udev/90-rtc.rules</code> to <code>/etc/udev/rules.d/90-rtc.rules</code>.</p>
+<ul>
+<li>You may need to run <code>udevadm control --reload-rules</code> to force udev to reload its rules.</li>
+</ul></li>
+<li><p>Install libusb via your system package manager.</p>
+<ul>
+<li><p>Fedora: <code>sudo yum install libusb</code>.</p></li>
+<li><p>Ubuntu/Debian: <code>sudo apt-get install libusb</code>.</p></li>
+</ul></li>
+<li><p>The real-time controller is now ready for use with Matlab.</p></li>
+</ol>
+<h2 id="to-use-the-real-time-controller-in-matlab">To use the real-time controller in Matlab</h2>
+<ol style="list-style-type: decimal">
+<li><p>Make sure that you have a suitable compiler for using the Matlab mex function. (Check the output of <code>mex -setup</code>.) Then compile the MEX functions using the compile_mex function in <code>controlcont/rtc/matlab</code>.</p>
+<ul>
+<li>A suitable (free) compiler is gcc which is installable via your system package manager.</li>
+</ul></li>
+<li><p>Start Matlab.</p></li>
+<li><p>Add <code>controlcont\rtc\matlab</code> to the Matlab path (<code>help addpath</code>).</p></li>
+<li><p>Add the appropriate rig directory to the Matlab path, e.g., <code>controlcont\rtc\rigs\duffing_numerical</code>.</p></li>
+<li><p>Create the interface to the controller with</p>
+<pre><code>rtc = duffing_numerical_interface()</code></pre></li>
+<li><p>All the controller parameters are available through <code>rtc.par.&lt;variable name&gt;</code>.</p></li>
+<li><p>Time series data can be collected through the use of streams; see the help for <code>rtc.set_stream</code>, <code>rtc.run_stream</code>.</p>
+<ul>
+<li><p>By default, 5 different streams (0-4) are available for use.</p></li>
+<li><p>The maximum amount of data a stream can return is around 8 MB. If too much data is requested, the stream recording will refuse to start.</p></li>
+</ul></li>
+</ol>
+<p>Note: this assumes that a rig specific interface is used to set default parameters. This is not necessary and the generic rtc_interface can be used instead if desired.</p>
+<h2 id="to-use-the-real-time-controller-in-python-2.x-or-3.x">To use the real-time controller in Python (2.x or 3.x)</h2>
+<ol style="list-style-type: decimal">
+<li><p>Start Python.</p></li>
+<li><p>Import the Python module and create the interface to the controller with</p>
+<pre><code>import rtc_interface
+rtc = rtc_interface.rtc_interface()</code></pre></li>
+<li><p>All the controller parameters are available through <code>rtc.par.&lt;variable name&gt;</code>.</p></li>
+<li><p>Time series data can be collected through the use of streams; see the help for <code>rtc.set_stream</code>, <code>rtc.run_stream</code>.</p>
+<ul>
+<li><p>By default, 5 different streams (0-4) are available for use.</p></li>
+<li><p>The maximum amount of data a stream can return is around 8 MB. If too much data is requested, the stream recording will refuse to start.</p></li>
+</ul></li>
+</ol>
+<p>Note: if desired, rig specific interfaces for Python can be created in much the same way as for Matlab.</p>
+<!-- pandoc -s install-linux.txt -o install-linux.html -->
+</body>
+</html>
